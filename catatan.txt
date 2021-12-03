@@ -1,0 +1,89 @@
+GROUP=mbkm
+SQL_SERVER=febriyansql
+SQL_USER=mbkm
+SQL_PASSWORD=P@ssw0rd123
+SQL_DB=febriyandb
+
+az group create -n $GROUP -l southeastasia
+az configure --default group=$GROUP
+
+az sql server create -n $SQL_SERVER -u $SQL_USER -p $SQL_PASSWORD -e false
+az configure --defaults sql-server=$SQL_SERVER
+az network vnet subnet update --vnet-name NewVnet -n NewSubnet2 --service-endpoints Microsoft.SQL
+az sql server vnet-rule create -s febriyansql -n baru --vnet-name NewVnet --subnet NewSubnet
+
+az sql db create -n $SQL_DB -e Basic -z false --bsr Local
+az sql db show-connection-string -c ado.net -n $SQL_DB
+
+az storage account create -n stmaribisnis --sku Standard_ZRS --default-action Deny
+az storage account network-rule add --account-name febriyanstorageaccount2 --vnet-name NewVnet --subnet NewSubnet2
+az storage share create -n nextcloud-data --account-name stmaribisnis
+az storage account keys list -n stmaribisnis
+
+az appservice plan create -n FebriyanPlan --is-linux --sku S1
+
+az webapp create -p appplan-orchardcms -n app-orchardcms -i orchardproject/orchardcore-cms-linux:latest --https-only true
+az webapp vnet-integration add -n app-orchardcms --subnet sn-public --vnet vnet-maribisnis
+az webapp config storage-account add -n app-orchardcms --custom-id data --storage-type AzureFiles --account-name stmaribisnis --share-name orchardcms-data --access-key uGYBK4DWyRzHu7EXMyHVTQ3d3GIHN75H7A/cctG4ii0Pmpb0eeFvDgrdjlNkJ6wac/0Vo2JktwLJpkL094rOEQ== --mount-path /app/App_Data
+
+az vm create --name php-app3 --image UbuntuLTS -z 2 --size Standard_B1s -l eastus
+az vm open-port -n php-app --port 80
+ sudo add-apt-repository ppa:ondrej/php
+ apt install php7.4 php7.4-curl php7.4-dom php7.4-gd php7.4-mbstring php7.4-xmlrpc php7.4-zip php7.4-mysql php7.4-bz2 php7.4-smbclient -y
+ sudo -u www-data php /var/www/nextcloud/occ maintenance:install --database "mysql" --database-name "nextcloud" --database-user "nextcloud" --database-pass "P@ssw0rd123" --admin-user "admin" --admin-pass "123"
+ sudo -u www-data php /var/www/nextcloud/occ config:system:set trusted_domains 1 --value=cloud.mbkm.tik.my.id
+
+
+
+
+
+
+az network dns zone create -n maribisnis.tik.my.id
+az network dns zone show -n maribisnis.tik.my.id -o jsonc
+az network dns record-set cname create -z maribisnis.tik.my.id -n web                                           
+az network dns record-set cname set-record -z maribisnis.tik.my.id -n web -c app-orchardcms.azurewebsites.net
+
+
+az webapp config ssl create --hostname api.maribisnis.tik.my.id -n app-maribisnisapi
+az webapp config ssl bind --certificate-thumbprint 1500F7E79D1CCECC2F630AE64ABAB223B64D549A -n app-maribisnisapi --ssl-type SNI
+az webapp config access-restriction add -n app-maribisnisapi --rule-name allow-vnet --action Allow --vnet-name vm-nextcloudVNET --subnet sn-private --priority 10
+
+
+az network vnet subnet create -n sn-private --vnet-name vm-nextcloudVNET --address-prefixes "10.0.1.0/24" --service-endpoints Microsoft.Web
+
+az network vnet subnet update --vnet-name vm-nextcloudVNET --name sn-private --disable-private-endpoint-network-policies true
+
+az network private-endpoint create -n pe-baru --private-connection-resource-id "/subscriptions/00b6ba74-43e0-4dcb-b74a-6f503a0e8a8a/resourceGroups/mbkm/providers/Microsoft.Web/sites/app-maribisnisapi" --connection-name my-conn --vnet-name vm-nextcloudVNET --subnet sn-private --group-id sites 
+
+az network private-dns zone create -n privatelink.azurewebsites.net
+az network private-dns link vnet create --zone-name privatelink.azurewebsites.net --name dnslink --virtual-network vnet-maribisnis --registration-enabled false
+
+az network private-endpoint dns-zone-group create --endpoint-name pe-internalapi -n default --private-dns-zone privatelink.azurewebsites.net --zone-name privatelink_azurewebsites_net
+
+
+
+
+az network vnet create -n vnet-maribisnis --address-prefix 10.10.10.0/28
+az network vnet subnet create -n sn-public --vnet-name vnet-maribisnis --address-prefixes 10.10.10.0/29
+az network vnet subnet create -n sn-private --vnet-name vnet-maribisnis --address-prefixes 10.10.10.8/29
+az network public-ip create -n pip-nextcloud --allocation-method Static
+az network nic create --vnet-name vnet-maribisnis --subnet sn-public -n nic-nextcloud --public-ip-address pip-nextcloud
+az vm create --name vm-nextcloud --image UbuntuLTS --size Standard_B1ls --nics nic-nextcloud2
+
+
+
+
+
+
+
+####
+az configure --defaults location=eastus
+az group create -n rg-maribisnis
+az configure --defaults group=rg-maribisnis
+
+
+
+&kqX3Ee@H?Erze$5
+
+Server=tcp:sql-maribisnis.database.windows.net,1433;Initial Catalog=sqldb-orchardcms;Persist Security Info=False;User ID=maribisnis;Password=nH64R2ZK97bPDfdj;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;
+
